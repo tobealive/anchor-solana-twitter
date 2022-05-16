@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 
-declare_id!("A7vF8Zo1Sz64c5CASXHqXkKJFww67ScZWW3xXjhFD8J1");
+declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
-pub mod twitter_with_ass {
+pub mod anchor_solana_twitter {
 	use super::*;
 
 	pub fn send_tweet(ctx: Context<SendTweet>, tag: String, content: String) -> Result<()> {
