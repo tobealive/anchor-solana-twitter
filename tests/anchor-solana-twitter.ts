@@ -17,7 +17,7 @@ describe("anchor-solana-twitter", () => {
 	const userOne = programProvider.wallet;
 	const otherUser = anchor.web3.Keypair.generate();
 	const confusedUser = anchor.web3.Keypair.generate();
-	// Hardcoded adress(e.g. your phantom wallet) for tests in the frontend. Here it is used to test dms.
+	// Hardcoded address(e.g. your phantom wallet) for tests in the frontend - here it is used to test dms
 	const recipient = new PublicKey("7aCWNQmgu5oi4W9kQBRRiuBkUMqCuj5xTA1DsT7vz8qa");
 	// Alternatively change the recipient to one of the other users publicKey
 
@@ -260,6 +260,26 @@ describe("anchor-solana-twitter", () => {
 		const commentOnComment = await program.account.comment.fetch(commentOnCommentKeypair.publicKey);
 		assert.equal(commentOnComment.tweet.toBase58(), badTweetKeypair.publicKey.toBase58());
 		assert.equal(commentOnComment.parent.toBase58(), commentKeypair.publicKey.toBase58());
+	});
+	
+	it("can edit a comment", async () => {
+		const comment = await program.account.comment.fetch(commentKeypair.publicKey);
+		assert.equal(comment.content, "Everything alright with u?");
+		assert.equal(comment.edited, false);
+
+		await program.methods
+			.editComment("Everything alright with you?")
+			.accounts({
+				comment: commentKeypair.publicKey,
+				user: userOne.publicKey,
+			})
+			.rpc();
+
+		const editedComment = await program.account.comment.fetch(
+			commentKeypair.publicKey
+		);
+		assert.equal(editedComment.content, "Everything alright with you?");
+		assert.equal(editedComment.edited, true);
 	});
 
 	// Decalre a voting keypair on global scope to make it reusable

@@ -49,8 +49,14 @@ pub mod anchor_solana_twitter {
 		comment.parent = parent.unwrap_or(tweet);
 		comment.timestamp = clock.unix_timestamp;
 		comment.content = content;
+		comment.edited = false;
 
 		Ok(())
+	}
+
+	pub fn edit_comment(ctx: Context<EditComment>, content: String) -> Result<()> {
+		let comment = &mut ctx.accounts.comment;
+		comment.edit(content)
 	}
 
 	pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<()> {
@@ -120,6 +126,13 @@ pub struct SendComment<'info> {
 }
 
 #[derive(Accounts)]
+pub struct EditComment<'info> {
+	#[account(mut, has_one = user)]
+	pub comment: Account<'info, Comment>,
+	pub user: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct Vote<'info> {
 	#[account(init, payer = user, space = Voting::LEN)]
 	pub voting: Account<'info, Voting>,
@@ -167,6 +180,7 @@ pub struct Comment {
 	pub parent: Pubkey, // Pubkey of parent comment
 	pub timestamp: i64,
 	pub content: String,
+	pub edited: bool,
 }
 
 #[account]
@@ -228,7 +242,17 @@ impl Comment {
         + PUBLIC_KEY_LENGTH // tweet
         + PUBLIC_KEY_LENGTH // parent
         + TIMESTAMP_LENGTH
-        + STRING_LENGTH_PREFIX + MAX_CONTENT_LENGTH;
+        + STRING_LENGTH_PREFIX + MAX_CONTENT_LENGTH
+        + EDITED_LENGTH;
+
+	pub fn edit(&mut self, content: String) -> Result<()> {
+		require!(self.content != content, ErrorCode::NothingChanged);
+
+		self.content = content;
+		self.edited = true;
+
+		Ok(())
+	}
 }
 
 impl Voting {
