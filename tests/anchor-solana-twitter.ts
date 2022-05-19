@@ -98,8 +98,8 @@ describe("anchor-solana-twitter", () => {
 			.rpc();
 	};
 
-	// Tweet #3 (#2 by userOne)
 	it("can send a tweet without a tag", async () => {
+		// Tweet #3 (#2 by userOne)
 		const tweetKeypair = anchor.web3.Keypair.generate();
 		await sendTweet(tweetKeypair, userOne, "", "gm");
 
@@ -137,16 +137,16 @@ describe("anchor-solana-twitter", () => {
 		}
 	});
 
-	// Tweet #4 (#3 by userOne)
 	it("cannot update a tweet without changes", async () => {
-		try {
-			const tweetKeypair = anchor.web3.Keypair.generate();
-			await sendTweet(tweetKeypair, userOne, "web3", "takes over!");
-			const tweet = await program.account.tweet.fetch(tweetKeypair.publicKey);
-			assert.equal(tweet.tag, "web3");
-			assert.equal(tweet.content, "takes over!");
-			assert.equal(tweet.edited, false);
+		// Tweet #4 (#3 by userOne)
+		const tweetKeypair = anchor.web3.Keypair.generate();
+		await sendTweet(tweetKeypair, userOne, "web3", "takes over!");
+		const tweet = await program.account.tweet.fetch(tweetKeypair.publicKey);
+		assert.equal(tweet.tag, "web3");
+		assert.equal(tweet.content, "takes over!");
+		assert.equal(tweet.edited, false);
 
+		try {
 			await program.methods
 				.updateTweet("web3", "takes over!")
 				.accounts({
