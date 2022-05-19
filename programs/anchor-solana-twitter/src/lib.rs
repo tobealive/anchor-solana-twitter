@@ -11,8 +11,9 @@ pub mod anchor_solana_twitter {
 		let user: &Signer = &ctx.accounts.user;
 		let clock: Clock = Clock::get().unwrap();
 
-		require!(tag.chars().count() <= 50, ErrorCode::TopicTooLong);
+		require!(tag.chars().count() <= 50, ErrorCode::TagTooLong);
 		require!(content.chars().count() <= 280, ErrorCode::ContentTooLong);
+		require!(content.chars().count() > 0, ErrorCode::NoContent);
 
 		tweet.user = *user.key;
 		tweet.timestamp = clock.unix_timestamp;
@@ -23,9 +24,12 @@ pub mod anchor_solana_twitter {
 		Ok(())
 	}
 
-	pub fn edit_tweet(ctx: Context<EditTweet>, tag: String, content: String) -> Result<()> {
-		let tweet = &mut ctx.accounts.tweet;
-		tweet.edit(tag, content)
+	pub fn update_tweet(
+		ctx: Context<UpdateTweet>,
+		new_tag: String,
+		new_content: String,
+	) -> Result<()> {
+		ctx.accounts.tweet.update(new_tag, new_content)
 	}
 
 	pub fn delete_tweet(_ctx: Context<DeleteTweet>) -> Result<()> {
@@ -54,9 +58,8 @@ pub mod anchor_solana_twitter {
 		Ok(())
 	}
 
-	pub fn edit_comment(ctx: Context<EditComment>, content: String) -> Result<()> {
-		let comment = &mut ctx.accounts.comment;
-		comment.edit(content)
+	pub fn update_comment(ctx: Context<UpdateComment>, new_content: String) -> Result<()> {
+		ctx.accounts.comment.update(new_content)
 	}
 
 	pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<()> {
@@ -72,9 +75,8 @@ pub mod anchor_solana_twitter {
 		Ok(())
 	}
 
-	pub fn edit_voting(ctx: Context<EditVoting>, result: VotingResult) -> Result<()> {
-		let voting = &mut ctx.accounts.voting;
-		voting.edit(result)
+	pub fn update_voting(ctx: Context<UpdateVoting>, new_result: VotingResult) -> Result<()> {
+		ctx.accounts.voting.update(new_result)
 	}
 
 	pub fn send_dm(ctx: Context<SendDm>, recipient: Pubkey, content: String) -> Result<()> {
@@ -103,7 +105,7 @@ pub struct SendTweet<'info> {
 }
 
 #[derive(Accounts)]
-pub struct EditTweet<'info> {
+pub struct UpdateTweet<'info> {
 	#[account(mut, has_one = user)]
 	pub tweet: Account<'info, Tweet>,
 	pub user: Signer<'info>,
@@ -126,7 +128,7 @@ pub struct SendComment<'info> {
 }
 
 #[derive(Accounts)]
-pub struct EditComment<'info> {
+pub struct UpdateComment<'info> {
 	#[account(mut, has_one = user)]
 	pub comment: Account<'info, Comment>,
 	pub user: Signer<'info>,
@@ -142,7 +144,7 @@ pub struct Vote<'info> {
 }
 
 #[derive(Accounts)]
-pub struct EditVoting<'info> {
+pub struct UpdateVoting<'info> {
 	#[account(mut, has_one = user)]
 	pub voting: Account<'info, Voting>,
 	pub user: Signer<'info>,
@@ -199,33 +201,31 @@ pub struct Dm {
 	pub content: String,
 }
 
-// Sizing propeties
+// Sizing properties
 const DISCRIMINATOR_LENGTH: usize = 8;
 const PUBLIC_KEY_LENGTH: usize = 32;
 const TIMESTAMP_LENGTH: usize = 8;
 const STRING_LENGTH_PREFIX: usize = 4; // Stores size of the string
-const MAX_TOPIC_LENGTH: usize = 50 * 4; // 50 chars max
+const MAX_TAG_LENGTH: usize = 50 * 4; // 50 chars max
 const MAX_CONTENT_LENGTH: usize = 280 * 4; // 280  chars max
-const EDITED_LENGTH: usize = 1;
-const VOTING_RESULT_LENGTH: usize = 1;
+const EDITED_LENGTH: usize = 1; // bool
+const VOTING_RESULT_LENGTH: usize = 1; // enum
 
 // Total size of accounts
 impl Tweet {
 	const LEN: usize = DISCRIMINATOR_LENGTH
         + PUBLIC_KEY_LENGTH // user 
         + TIMESTAMP_LENGTH
-        + STRING_LENGTH_PREFIX + MAX_TOPIC_LENGTH
+        + STRING_LENGTH_PREFIX + MAX_TAG_LENGTH
         + STRING_LENGTH_PREFIX + MAX_CONTENT_LENGTH
         + EDITED_LENGTH;
 
-	pub fn edit(&mut self, tag: String, content: String) -> Result<()> {
+	pub fn update(&mut self, tag: String, content: String) -> Result<()> {
 		require!(
 			self.tag != tag && self.content != content,
 			ErrorCode::NothingChanged
 		);
-
-		require!(tag.chars().count() <= 50, ErrorCode::TopicTooLong);
-
+		require!(tag.chars().count() <= 50, ErrorCode::TagTooLong);
 		require!(content.chars().count() <= 280, ErrorCode::ContentTooLong);
 
 		self.tag = tag;
@@ -245,12 +245,10 @@ impl Comment {
         + STRING_LENGTH_PREFIX + MAX_CONTENT_LENGTH
         + EDITED_LENGTH;
 
-	pub fn edit(&mut self, content: String) -> Result<()> {
+	pub fn update(&mut self, content: String) -> Result<()> {
 		require!(self.content != content, ErrorCode::NothingChanged);
-
 		self.content = content;
 		self.edited = true;
-
 		Ok(())
 	}
 }
@@ -262,11 +260,9 @@ impl Voting {
         + TIMESTAMP_LENGTH
         + VOTING_RESULT_LENGTH;
 
-	pub fn edit(&mut self, result: VotingResult) -> Result<()> {
+	pub fn update(&mut self, result: VotingResult) -> Result<()> {
 		require!(self.result != result, ErrorCode::NothingChanged);
-
 		self.result = result;
-
 		Ok(())
 	}
 }
@@ -281,12 +277,12 @@ impl Dm {
 
 #[error_code]
 pub enum ErrorCode {
-	#[msg("Exceeding maximum tag length of 50 characters.")]
-	TopicTooLong,
-	#[msg("Exceeding maximum content length of 280 characters.")]
+	#[msg("Exceeding maximum tag length of 50 characters")]
+	TagTooLong,
+	#[msg("Trying to send a tweet without content")]
 	ContentTooLong,
-	#[msg("Nothing that could be updated.")]
+	#[msg("Nothing that could be updated")]
+	NoContent,
+	#[msg("Exceeding maximum content length of 280 characters")]
 	NothingChanged,
-	#[msg("Trying to send an invalid vote.")]
-	InvalidVote,
 }

@@ -13,17 +13,19 @@ describe("anchor-solana-twitter", () => {
 	// Configure the client to use the local cluster.
 	anchor.setProvider(programProvider);
 
-	// Generate users
+	// Generate keypairs on tests- instead of function-scope for re-usage
 	const userOne = programProvider.wallet;
-	const otherUser = anchor.web3.Keypair.generate();
-	const confusedUser = anchor.web3.Keypair.generate();
+	const userTwo = anchor.web3.Keypair.generate();
+	const userThree = anchor.web3.Keypair.generate();
 	// Hardcoded address(e.g. your phantom wallet) for tests in the frontend - here it is used to test dms
 	const recipient = new PublicKey("7aCWNQmgu5oi4W9kQBRRiuBkUMqCuj5xTA1DsT7vz8qa");
 	// Alternatively change the recipient to one of the other users publicKey
 
 	// Tweet #1
-	it("can send a tweet", async () => {
+	it("can send and update tweets", async () => {
 		const tweetKeypair = anchor.web3.Keypair.generate();
+
+		// Send tweet #1
 		await program.methods
 			.sendTweet("veganism", "Hummus, am i right 🧆?")
 			.accounts({
@@ -38,40 +40,49 @@ describe("anchor-solana-twitter", () => {
 
 		// Fetch the created tweet
 		const tweet = await program.account.tweet.fetch(tweetKeypair.publicKey);
-
 		// Ensure it has the right data
 		assert.equal(tweet.user.toBase58(), programProvider.wallet.publicKey.toBase58());
 		assert.equal(tweet.tag, "veganism");
 		assert.equal(tweet.content, "Hummus, am i right 🧆?");
 		assert.ok(tweet.timestamp);
-		// console.log('Sent tweet :', tweet);
-	});
 
-	// Tweet #2
-	it("can send a tweet from a different user", async () => {
+		// Update the tweet
+		await program.methods
+			.updateTweet("baneyneys", "And lobsters!")
+			.accounts({
+				tweet: tweetKeypair.publicKey,
+				user: userOne.publicKey,
+			})
+			.rpc();
+
+		// Fetch tweets state to check if it was updated
+		const updatedTweet = await program.account.tweet.fetch(tweetKeypair.publicKey);
+		assert.equal(updatedTweet.tag, "baneyneys");
+		assert.equal(updatedTweet.content, "And lobsters!");
+		assert.equal(updatedTweet.edited, true);
+
+		// Send tweet from a different user
 		// Airdrop some SOL
-		const signature = await programProvider.connection.requestAirdrop(otherUser.publicKey, 1000000000);
+		const signature = await programProvider.connection.requestAirdrop(userTwo.publicKey, 1000000000);
 		await programProvider.connection.confirmTransaction(signature);
 
-		const tweetKeypair = anchor.web3.Keypair.generate();
+		// Tweet #2
+		const tweetKeypairTwo = anchor.web3.Keypair.generate();
 		await program.methods
 			.sendTweet("veganism", "Yay Tofu 🍜!")
 			.accounts({
-				tweet: tweetKeypair.publicKey,
-				user: otherUser.publicKey,
+				tweet: tweetKeypairTwo.publicKey,
+				user: userTwo.publicKey,
 				systemProgram: anchor.web3.SystemProgram.programId,
 			})
-			.signers([otherUser, tweetKeypair])
+			.signers([userTwo, tweetKeypairTwo])
 			.rpc();
 
-		// Fetch the created tweet
-		const tweet = await program.account.tweet.fetch(tweetKeypair.publicKey);
-
-		// Ensure it has the right data
-		assert.equal(tweet.user.toBase58(), otherUser.publicKey.toBase58());
-		assert.equal(tweet.tag, "veganism");
-		assert.equal(tweet.content, "Yay Tofu 🍜!");
-		assert.ok(tweet.timestamp);
+		const tweetTwo = await program.account.tweet.fetch(tweetKeypairTwo.publicKey);
+		assert.equal(tweetTwo.user.toBase58(), userTwo.publicKey.toBase58());
+		assert.equal(tweetTwo.tag, "veganism");
+		assert.equal(tweetTwo.content, "Yay Tofu 🍜!");
+		assert.ok(tweetTwo.timestamp);
 	});
 
 	// Helper function that calls the "SendTweet" instruction to stop repeating ourselfs
@@ -99,57 +110,35 @@ describe("anchor-solana-twitter", () => {
 		assert.ok(tweet.timestamp);
 	});
 
-	it("cannot provide a tag with more than 50 characters", async () => {
+	it("cannot send a tweet without content", async () => {
+		try {
+			const tweetKeypair = anchor.web3.Keypair.generate();
+			await sendTweet(tweetKeypair, userOne, "gm", "");
+		} catch (err) {
+			assert.equal(err.error.errorCode.code, "NoContent");
+		}
+	});
+
+	it("cannot send a tweet with a tag > 50 or content > 280 characters", async () => {
 		try {
 			const tweetKeypair = anchor.web3.Keypair.generate();
 			const tagWith51Chars = "x".repeat(51);
 			await sendTweet(tweetKeypair, userOne, tagWith51Chars, "takes over!");
 		} catch (err) {
-			assert.equal(err.error.errorCode.code, "TopicTooLong");
-			return;
+			assert.equal(err.error.errorCode.code, "TagTooLong");
 		}
-		assert.fail("The instruction should have failed with a 51-character tag.");
-	});
 
-	it("cannot provide a content with more than 280 characters", async () => {
 		try {
 			const tweetKeypair = anchor.web3.Keypair.generate();
 			const contentWith281Chars = "x".repeat(281);
 			await sendTweet(tweetKeypair, userOne, "veganism", contentWith281Chars);
 		} catch (err) {
 			assert.equal(err.error.errorCode.code, "ContentTooLong");
-			return;
 		}
-		assert.fail("The instruction should have failed with a 281-character content.");
 	});
 
 	// Tweet #4 (#3 by userOne)
-	it("can edit a tweet", async () => {
-		const tweetKeypair = anchor.web3.Keypair.generate();
-		await sendTweet(tweetKeypair, userOne, "web3", "takes over!");
-		const tweet = await program.account.tweet.fetch(tweetKeypair.publicKey);
-		assert.equal(tweet.tag, "web3");
-		assert.equal(tweet.content, "takes over!");
-		assert.equal(tweet.edited, false);
-
-		// Update the tweet
-		await program.methods
-			.editTweet("baneyneys", "And lobsters!")
-			.accounts({
-				tweet: tweetKeypair.publicKey,
-				user: userOne.publicKey,
-			})
-			.rpc();
-
-		// Fetch tweets state to check if it was updated
-		const editedTweet = await program.account.tweet.fetch(tweetKeypair.publicKey);
-		assert.equal(editedTweet.tag, "baneyneys");
-		assert.equal(editedTweet.content, "And lobsters!");
-		assert.equal(editedTweet.edited, true);
-	});
-
-	// Tweet #5 (#4 by userOne)
-	it("cannot update a tweet that wasn't changed", async () => {
+	it("cannot update a tweet without changes", async () => {
 		try {
 			const tweetKeypair = anchor.web3.Keypair.generate();
 			await sendTweet(tweetKeypair, userOne, "web3", "takes over!");
@@ -159,7 +148,7 @@ describe("anchor-solana-twitter", () => {
 			assert.equal(tweet.edited, false);
 
 			await program.methods
-				.editTweet("web3", "takes over!")
+				.updateTweet("web3", "takes over!")
 				.accounts({
 					tweet: tweetKeypair.publicKey,
 					user: userOne.publicKey,
@@ -174,7 +163,7 @@ describe("anchor-solana-twitter", () => {
 
 	it("can fetch all tweets", async () => {
 		const tweets = await program.account.tweet.all();
-		assert.equal(tweets.length, 5);
+		assert.equal(tweets.length, 4);
 	});
 
 	it("can filter tweets by user", async () => {
@@ -188,13 +177,8 @@ describe("anchor-solana-twitter", () => {
 		]);
 
 		// Check if the fetched amout of tweets is equal to those the user sent
-		assert.equal(tweets.length, 4);
-		assert.ok(
-			tweets.every((tweet) => {
-				return tweet.account.user.toBase58() === userOne.publicKey.toBase58();
-			})
-		);
-		// console.log('Tweets filtered by user: ', tweets);
+		assert.equal(tweets.length, 3);
+		assert.ok(tweets.every((tweet) => tweet.account.user.toBase58() === userOne.publicKey.toBase58()));
 	});
 
 	it("can filter tweets by tags", async () => {
@@ -210,22 +194,19 @@ describe("anchor-solana-twitter", () => {
 				},
 			},
 		]);
-		assert.equal(tweets.length, 2);
-		assert.ok(
-			tweets.every((tweetAccount) => {
-				return tweetAccount.account.tag === "veganism";
-			})
-		);
+		assert.equal(tweets.length, 1);
+		assert.ok(tweets.every((tweetAccount) => tweetAccount.account.tag === "veganism"));
 	});
 
 	// Decalre a tweet and comment keypair on global scope to make it reusable
 	const badTweetKeypair = anchor.web3.Keypair.generate();
 	const commentKeypair = anchor.web3.Keypair.generate();
 
-	it("can comment on a tweet", async () => {
-		const signature = await programProvider.connection.requestAirdrop(confusedUser.publicKey, 1000000000);
+	// TODO: improve, do not send a t
+	it("can send and update tweet comments", async () => {
+		const signature = await programProvider.connection.requestAirdrop(userThree.publicKey, 1000000000);
 		await programProvider.connection.confirmTransaction(signature);
-		await sendTweet(badTweetKeypair, confusedUser, "hejustwantsourbest", "i like bill gates");
+		await sendTweet(badTweetKeypair, userThree, "hejustwantsourbest", "i like bill gates");
 		const badTweet = await program.account.tweet.fetch(badTweetKeypair.publicKey);
 		assert.equal(badTweet.tag, "hejustwantsourbest");
 		assert.equal(badTweet.content, "i like bill gates");
@@ -241,51 +222,46 @@ describe("anchor-solana-twitter", () => {
 			.signers([commentKeypair])
 			.rpc();
 
-		const comment = await program.account.comment.fetch(commentKeypair.publicKey);
-		assert.equal(comment.tweet.toBase58(), badTweetKeypair.publicKey.toBase58());
-	});
+		assert.equal(
+			(await program.account.comment.fetch(commentKeypair.publicKey)).tweet.toBase58(),
+			badTweetKeypair.publicKey.toBase58()
+		);
 
-	it("can comment on a comment", async () => {
-		const commentOnCommentKeypair = anchor.web3.Keypair.generate();
+		// update comment
 		await program.methods
-			.sendComment(badTweetKeypair.publicKey, "I hope he's well", commentKeypair.publicKey)
-			.accounts({
-				comment: commentOnCommentKeypair.publicKey,
-				user: otherUser.publicKey,
-				systemProgram: anchor.web3.SystemProgram.programId,
-			})
-			.signers([commentOnCommentKeypair, otherUser])
-			.rpc();
-
-		const commentOnComment = await program.account.comment.fetch(commentOnCommentKeypair.publicKey);
-		assert.equal(commentOnComment.tweet.toBase58(), badTweetKeypair.publicKey.toBase58());
-		assert.equal(commentOnComment.parent.toBase58(), commentKeypair.publicKey.toBase58());
-	});
-	
-	it("can edit a comment", async () => {
-		const comment = await program.account.comment.fetch(commentKeypair.publicKey);
-		assert.equal(comment.content, "Everything alright with u?");
-		assert.equal(comment.edited, false);
-
-		await program.methods
-			.editComment("Everything alright with you?")
+			.updateComment("Everything alright with *you?")
 			.accounts({
 				comment: commentKeypair.publicKey,
 				user: userOne.publicKey,
 			})
 			.rpc();
 
-		const editedComment = await program.account.comment.fetch(
-			commentKeypair.publicKey
-		);
-		assert.equal(editedComment.content, "Everything alright with you?");
-		assert.equal(editedComment.edited, true);
+		const updatedComment = await program.account.comment.fetch(commentKeypair.publicKey);
+		assert.equal(updatedComment.content, "Everything alright with *you?");
+		assert.equal(updatedComment.edited, true);
+	});
+
+	it("can send a comment on a comment", async () => {
+		const commentOnCommentKeypair = anchor.web3.Keypair.generate();
+		await program.methods
+			.sendComment(badTweetKeypair.publicKey, "I hope he's well", commentKeypair.publicKey)
+			.accounts({
+				comment: commentOnCommentKeypair.publicKey,
+				user: userTwo.publicKey,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			})
+			.signers([commentOnCommentKeypair, userTwo])
+			.rpc();
+
+		const commentOnComment = await program.account.comment.fetch(commentOnCommentKeypair.publicKey);
+		assert.equal(commentOnComment.tweet.toBase58(), badTweetKeypair.publicKey.toBase58());
+		assert.equal(commentOnComment.parent.toBase58(), commentKeypair.publicKey.toBase58());
 	});
 
 	// Decalre a voting keypair on global scope to make it reusable
 	const votingKeypair = anchor.web3.Keypair.generate();
 
-	it("can vote on a tweet", async () => {
+	it("can vote and update a voting on a tweet", async () => {
 		const tweet = anchor.web3.Keypair.generate();
 		await sendTweet(tweet, userOne, "Linux", "Don't forget about the GNU 🦬");
 
@@ -303,25 +279,21 @@ describe("anchor-solana-twitter", () => {
 		assert.equal(voting.tweet.toBase58(), tweet.publicKey.toBase58());
 		assert.equal(Object.keys(voting.result)[0], "like");
 		// assert.equal(voting.result, { like: {} })
-	});
 
-	it("can edit a voting", async () => {
-		const voting = await program.account.voting.fetch(votingKeypair.publicKey);
-		assert.equal(Object.keys(voting.result)[0], "like");
-
+		// Update voting
 		await program.methods
-			.editVoting({ noVoting: {} })
+			.updateVoting({ noVoting: {} })
 			.accounts({
 				voting: votingKeypair.publicKey,
 				user: userOne.publicKey,
 			})
 			.rpc();
 
-		const editedVoting = await program.account.voting.fetch(votingKeypair.publicKey);
-		assert.equal(Object.keys(editedVoting.result)[0], "noVoting");
+		const updatedVoting = await program.account.voting.fetch(votingKeypair.publicKey);
+		assert.equal(Object.keys(updatedVoting.result)[0], "noVoting");
 	});
 
-	it("can filter a users favorite tweets", async () => {
+	it("can filter a users favorite(upvoted) tweets", async () => {
 		const favorites = await program.account.voting.all([
 			{
 				memcmp: {
@@ -331,11 +303,7 @@ describe("anchor-solana-twitter", () => {
 			},
 		]);
 		assert.equal(favorites.length, 1);
-		assert.ok(
-			favorites.every((favorite) => {
-				return favorite.account.user.toBase58() === userOne.publicKey.toBase58();
-			})
-		);
+		assert.ok(favorites.every((favorite) => favorite.account.user.toBase58() === userOne.publicKey.toBase58()));
 	});
 
 	it("can send a direct message to another user", async () => {
@@ -350,8 +318,7 @@ describe("anchor-solana-twitter", () => {
 			.signers([dmKeypair])
 			.rpc();
 
-		const dm = await program.account.dm.fetch(dmKeypair.publicKey);
-		assert.equal(dm.recipient.toBase58(), recipient.toBase58());
+		assert.equal((await program.account.dm.fetch(dmKeypair.publicKey)).recipient.toBase58(), recipient.toBase58());
 	});
 
 	it("can filter all direct messages a user has sent", async () => {
@@ -364,14 +331,10 @@ describe("anchor-solana-twitter", () => {
 			},
 		]);
 		assert.equal(dms.length, 1);
-		assert.ok(
-			dms.every((dm) => {
-				return dm.account.user.toBase58() === userOne.publicKey.toBase58();
-			})
-		);
+		assert.ok(dms.every((dm) => dm.account.user.toBase58() === userOne.publicKey.toBase58()));
 	});
 
-	it("can filter direct messages by recipient", async () => {
+	it("can filter direct messages sent to a specific user", async () => {
 		const dms = await program.account.dm.all([
 			{
 				memcmp: {
@@ -383,10 +346,6 @@ describe("anchor-solana-twitter", () => {
 			},
 		]);
 		assert.equal(dms.length, 1);
-		assert.ok(
-			dms.every((dm) => {
-				return dm.account.recipient.toBase58() == recipient.toBase58();
-			})
-		);
+		assert.ok(dms.every((dm) => dm.account.recipient.toBase58() == recipient.toBase58()));
 	});
 });
