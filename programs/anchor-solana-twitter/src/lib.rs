@@ -64,13 +64,13 @@ pub mod anchor_solana_twitter {
 
 	pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<()> {
 		let voting = &mut ctx.accounts.voting;
-		let user: &Signer = &ctx.accounts.user;
 		let clock: Clock = Clock::get().unwrap();
 
-		voting.user = *user.key;
 		voting.tweet = tweet;
 		voting.timestamp = clock.unix_timestamp;
 		voting.result = result;
+		voting.bump = *ctx.bumps.get("voting").unwrap();
+		
 
 		Ok(())
 	}
@@ -151,18 +151,18 @@ pub struct UpdateComment<'info> {
 
 #[derive(Accounts)]
 pub struct Vote<'info> {
-	#[account(init, payer = user, space = Voting::LEN)]
+	#[account(init, payer = user, space = Voting::LEN, seeds = [b"voting", user.key().as_ref()], bump)]
 	pub voting: Account<'info, Voting>,
+    pub system_program: Program<'info, System>,
 	#[account(mut)]
 	pub user: Signer<'info>,
-	pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct UpdateVoting<'info> {
-	#[account(mut, has_one = user)]
+    pub user: Signer<'info>,
+	#[account(mut, seeds = [b"voting", user.key().as_ref()], bump = voting.bump)]
 	pub voting: Account<'info, Voting>,
-	pub user: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -218,10 +218,10 @@ pub struct Comment {
 
 #[account]
 pub struct Voting {
-	pub user: Pubkey,
 	pub tweet: Pubkey,
 	pub timestamp: i64,
 	pub result: VotingResult,
+	pub bump: u8,
 }
 
 #[account]

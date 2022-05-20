@@ -252,17 +252,20 @@ describe("anchor-solana-twitter", () => {
 		const tweet = anchor.web3.Keypair.generate();
 		await sendTweet(tweet, userOne, "Linux", "Don't forget about the GNU 🦬");
 
+		const [votingPDA, _] = await PublicKey.findProgramAddress(
+			[anchor.utils.bytes.utf8.encode("voting"), userOne.publicKey.toBuffer()],
+			program.programId
+		);
+
 		await program.methods
 			.vote(tweet.publicKey, { like: {} })
 			.accounts({
-				voting: votingKeypair.publicKey,
 				user: userOne.publicKey,
-				systemProgram: anchor.web3.SystemProgram.programId,
+				voting: votingPDA,
 			})
-			.signers([votingKeypair])
 			.rpc();
 
-		const voting = await program.account.voting.fetch(votingKeypair.publicKey);
+		const voting = await program.account.voting.fetch(votingPDA);
 		assert.equal(voting.tweet.toBase58(), tweet.publicKey.toBase58());
 		assert.equal(Object.keys(voting.result)[0], "like");
 		// assert.equal(voting.result, { like: {} })
@@ -271,12 +274,12 @@ describe("anchor-solana-twitter", () => {
 		await program.methods
 			.updateVoting({ noVoting: {} })
 			.accounts({
-				voting: votingKeypair.publicKey,
 				user: userOne.publicKey,
+				voting: votingPDA
 			})
 			.rpc();
 
-		const updatedVoting = await program.account.voting.fetch(votingKeypair.publicKey);
+		const updatedVoting = await program.account.voting.fetch(votingPDA);
 		assert.equal(Object.keys(updatedVoting.result)[0], "noVoting");
 	});
 
