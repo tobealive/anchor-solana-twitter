@@ -335,4 +335,31 @@ describe("anchor-solana-twitter", () => {
 		assert.equal(dms.length, 1);
 		assert.ok(dms.every((dm) => dm.account.recipient.toBase58() == dmRecipient.toBase58()));
 	});
+
+	it("can create and update an user alias", async () => {
+		const [userAliasPDA, _] = await PublicKey.findProgramAddress(
+			[anchor.utils.bytes.utf8.encode("user-alias"), userOne.publicKey.toBuffer()],
+			program.programId
+		);
+
+		await program.methods
+			.createAlias("Erwin")
+			.accounts({
+				user: userOne.publicKey,
+				userAlias: userAliasPDA,
+			})
+			.rpc();
+
+		assert.equal((await program.account.userAlias.fetch(userAliasPDA)).alias, "Erwin");
+
+		await program.methods
+			.updateUserAlias("Smith")
+			.accounts({
+				user: userOne.publicKey,
+				userAlias: userAliasPDA,
+			})
+			.rpc();
+
+		assert.equal((await program.account.userAlias.fetch(userAliasPDA)).alias, "Smith");
+	});
 });

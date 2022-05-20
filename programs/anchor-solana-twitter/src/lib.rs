@@ -93,6 +93,21 @@ pub mod anchor_solana_twitter {
 
 		Ok(())
 	}
+
+	pub fn create_alias(ctx: Context<CreateUserAlias>, alias: String) -> Result<()> {
+		let user_alias = &mut ctx.accounts.user_alias;
+
+		require!(alias.chars().count() <= 50, ErrorCode::AliasTooLong);
+
+		user_alias.alias = alias;
+		user_alias.bump = *ctx.bumps.get("user_alias").unwrap();
+
+		Ok(())
+	}
+
+	pub fn update_user_alias(ctx: Context<UpdateUserAlias>, new_alias: String) -> Result<()> {
+		ctx.accounts.user_alias.update(new_alias)
+	}
 }
 
 #[derive(Accounts)]
@@ -159,6 +174,22 @@ pub struct SendDm<'info> {
 	pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct CreateUserAlias<'info> {
+	#[account(init, payer = user, space = UserAlias::LEN, seeds = [b"user-alias", user.key().as_ref()], bump)]
+	pub user_alias: Account<'info, UserAlias>,
+	pub system_program: Program<'info, System>,
+	#[account(mut)]
+	pub user: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserAlias<'info> {
+	pub user: Signer<'info>,
+	#[account(mut, seeds = [b"user-alias", user.key().as_ref()], bump = user_alias.bump)]
+	pub user_alias: Account<'info, UserAlias>,
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub enum VotingResult {
 	Like,
@@ -201,13 +232,20 @@ pub struct Dm {
 	pub content: String,
 }
 
-// Sizing properties
+#[account]
+pub struct UserAlias {
+	pub alias: String,
+	pub bump: u8,
+}
+
+// Sizing propeties
 const DISCRIMINATOR_LENGTH: usize = 8;
 const PUBLIC_KEY_LENGTH: usize = 32;
 const TIMESTAMP_LENGTH: usize = 8;
 const STRING_LENGTH_PREFIX: usize = 4; // Stores size of the string
 const MAX_TAG_LENGTH: usize = 50 * 4; // 50 chars max
 const MAX_CONTENT_LENGTH: usize = 280 * 4; // 280  chars max
+const MAX_ALIAS_LENGTH: usize = 50 * 4;
 const EDITED_LENGTH: usize = 1; // bool
 const VOTING_RESULT_LENGTH: usize = 1; // enum
 
@@ -275,14 +313,33 @@ impl Dm {
         + STRING_LENGTH_PREFIX + MAX_CONTENT_LENGTH;
 }
 
+impl UserAlias {
+	const LEN: usize = DISCRIMINATOR_LENGTH
+        + PUBLIC_KEY_LENGTH // user
+        + STRING_LENGTH_PREFIX + MAX_ALIAS_LENGTH;
+
+	pub fn update(&mut self, new_alias: String) -> Result<()> {
+		require!(self.alias != new_alias, ErrorCode::NothingChanged);
+		require!(self.alias.chars().count() <= 50, ErrorCode::AliasTooLong);
+		self.alias = new_alias;
+		Ok(())
+	}
+}
+
 #[error_code]
 pub enum ErrorCode {
 	#[msg("Exceeding maximum tag length of 50 characters")]
 	TagTooLong,
 	#[msg("Trying to send a tweet without content")]
-	ContentTooLong,
-	#[msg("Nothing that could be updated")]
 	NoContent,
 	#[msg("Exceeding maximum content length of 280 characters")]
+	ContentTooLong,
+	#[msg("Nothing that could be updated")]
 	NothingChanged,
+	#[msg("Trying to send an invalid vote")]
+	InvalidVote,
+	#[msg("An alias for this user is already registered")]
+	AliasPresent,
+	#[msg("Exceeding maximum tag length of 50 characters.")]
+	AliasTooLong,
 }
