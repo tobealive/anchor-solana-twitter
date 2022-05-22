@@ -1,5 +1,3 @@
-use crate::errors::ErrorCode;
-use crate::state::_len;
 use anchor_lang::prelude::*;
 
 #[account]
@@ -11,33 +9,10 @@ pub struct Tweet {
 	pub edited: bool,
 }
 
-impl Tweet {
-	const LEN: usize = _len::DISCRIMINATOR
-        + _len::PUBLIC_KEY // user 
-        + _len::TIMESTAMP
-        + _len::STRING_LENGTH + _len::TAG_MAX
-        + _len::STRING_LENGTH + _len::CONTENT_MAX
-        + _len::EDITED;
-
-	pub fn update(&mut self, tag: String, content: String) -> Result<()> {
-		require!(
-			self.tag != tag && self.content != content,
-			ErrorCode::NothingChanged
-		);
-		require!(tag.chars().count() <= 50, ErrorCode::TagTooLong);
-		require!(content.chars().count() <= 280, ErrorCode::ContentTooLong);
-
-		self.tag = tag;
-		self.content = content;
-		self.edited = true;
-
-		Ok(())
-	}
-}
-
 #[derive(Accounts)]
 pub struct SendTweet<'info> {
-	#[account(init, payer = user, space = Tweet::LEN)]
+    // space: 8 discriminator + 32 user pubkey + 8 timestamp + (4 prefix + 50 * 4) tag + (4 prefix + 280 * 4) content + 1 edited state 
+	#[account(init, payer = user, space = 8 + 32 + 8 + (4 + 50 * 4) + (4 + 280 * 4) + 1)]
 	pub tweet: Account<'info, Tweet>,
 	#[account(mut)]
 	pub user: Signer<'info>,
@@ -57,3 +32,4 @@ pub struct DeleteTweet<'info> {
 	pub tweet: Account<'info, Tweet>,
 	pub user: Signer<'info>,
 }
+

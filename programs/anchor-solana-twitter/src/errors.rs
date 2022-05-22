@@ -11,6 +11,7 @@ pub enum ErrorCode {
 	#[msg("Nothing that could be updated")]
 	NothingChanged,
 	#[msg("Trying to send an invalid vote")]
+    // NOTE: unused
 	InvalidVote,
 	#[msg("An alias for this user is already registered")]
 	AliasPresent,

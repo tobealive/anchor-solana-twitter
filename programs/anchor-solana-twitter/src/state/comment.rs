@@ -1,37 +1,19 @@
-use crate::errors::ErrorCode;
-use crate::state::_len;
 use anchor_lang::prelude::*;
 
 #[account]
 pub struct Comment {
 	pub user: Pubkey,
-	pub tweet: Pubkey,  // Pubkey commented tweet
+	pub tweet: Pubkey,  // Pubkey of commented tweet
 	pub parent: Pubkey, // Pubkey of parent comment
 	pub timestamp: i64,
 	pub content: String,
 	pub edited: bool,
 }
 
-impl Comment {
-	const LEN: usize = _len::DISCRIMINATOR
-        + _len::PUBLIC_KEY // user
-        + _len::PUBLIC_KEY // tweet
-        + _len::PUBLIC_KEY // parent
-        + _len::TIMESTAMP
-        + _len::STRING_LENGTH + _len::CONTENT_MAX
-        + _len::EDITED;
-
-	pub fn update(&mut self, content: String) -> Result<()> {
-		require!(self.content != content, ErrorCode::NothingChanged);
-		self.content = content;
-		self.edited = true;
-		Ok(())
-	}
-}
-
 #[derive(Accounts)]
 pub struct SendComment<'info> {
-	#[account(init, payer = user, space = Comment::LEN)]
+    // space: 8 discriminator + 32 user + 32 tweet + 32 parent + 8 timestamp + (4 prefix + 280 * 4) content + 1 edited state 
+	#[account(init, payer = user, space = 8 + 32 + 32 + 32 + 8 + (4 + 280 * 4) + 1)]
 	pub comment: Account<'info, Comment>,
 	#[account(mut)]
 	pub user: Signer<'info>,

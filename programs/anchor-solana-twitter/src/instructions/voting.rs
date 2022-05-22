@@ -1,4 +1,5 @@
 use crate::state::voting::*;
+use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
 
 pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<()> {
@@ -16,5 +17,8 @@ pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<(
 }
 
 pub fn update_voting(ctx: Context<UpdateVoting>, new_result: VotingResult) -> Result<()> {
-	ctx.accounts.voting.update(new_result)
+	let voting = &mut ctx.accounts.voting;
+    require!(voting.result != new_result, ErrorCode::NothingChanged);
+    voting.result = new_result;
+    Ok(())
 }

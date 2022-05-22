@@ -25,5 +25,12 @@ pub fn send_comment(
 }
 
 pub fn update_comment(ctx: Context<UpdateComment>, new_content: String) -> Result<()> {
-	ctx.accounts.comment.update(new_content)
+	let comment = &mut ctx.accounts.comment;
+
+	require!(comment.content != new_content, ErrorCode::NothingChanged);
+
+	comment.content = new_content;
+	comment.edited = true;
+
+	Ok(())
 }

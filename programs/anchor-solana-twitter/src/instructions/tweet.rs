@@ -21,7 +21,17 @@ pub fn send_tweet(ctx: Context<SendTweet>, tag: String, content: String) -> Resu
 }
 
 pub fn update_tweet(ctx: Context<UpdateTweet>, new_tag: String, new_content: String) -> Result<()> {
-	ctx.accounts.tweet.update(new_tag, new_content)
+	let tweet = &mut ctx.accounts.tweet;
+
+	require!(tweet.tag != new_tag && tweet.content != new_content, ErrorCode::NothingChanged);
+	require!(new_tag.chars().count() <= 50, ErrorCode::TagTooLong);
+	require!(new_content.chars().count() <= 280, ErrorCode::ContentTooLong);
+
+	tweet.tag = new_tag;
+	tweet.content = new_content;
+	tweet.edited = true;
+
+	Ok(())
 }
 
 pub fn delete_tweet(_ctx: Context<DeleteTweet>) -> Result<()> {
