@@ -1,11 +1,11 @@
-pub use tweet::*;
 pub use comment::*;
-pub use voting::*;
 pub use dm::*;
-pub use alias::*;
+pub use tweet::*;
+pub use user_alias::*;
+pub use voting::*;
 
-pub mod tweet;
 pub mod comment;
-pub mod voting;
 pub mod dm;
-pub mod alias;
+pub mod tweet;
+pub mod user_alias;
+pub mod voting;

@@ -1,19 +1,22 @@
 # anchor-solana-twitter
 
-This branch is an updated, refactored and extended version of v1
+Aims to update, refactor and extend the v1-branch.
 
 ## Major changes 
 
 - New api syntax
-	- abandon deprecated `.rpc` program namespaces in favor of `.methods`
+	- abandon deprecated `.rpc` in favor of `.methods` syntax
 
-- Votes are a separate account instead of updating a counter on a existing tweet
+- Votings are accounts, instead of just updating a counter on an existing tweet
+	- enables filtering votings by users
 	- less costs for sending a vote
-	- users being able to filter favorite tweets
 	- `rating` counter on the tweet becomes obsolete
 
-- Direct messages are a separate account instead of being a tweet
+- Direct messages are separate accounts instead of being a tweet
 	- less cost on for dms
 	- `recipient` on tweet account becomes obsolete
 
 - Comment functionality
+
+- Users can create aliases
+

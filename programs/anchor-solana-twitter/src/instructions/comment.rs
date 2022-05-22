@@ -34,3 +34,7 @@ pub fn update_comment(ctx: Context<UpdateComment>, new_content: String) -> Resul
 
 	Ok(())
 }
+
+pub fn delete_comment(_ctx: Context<DeleteComment>) -> Result<()> {
+	Ok(())
+}

@@ -11,6 +11,7 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 pub mod anchor_solana_twitter {
 	use super::*;
 
+	// Tweet
 	pub fn send_tweet(ctx: Context<SendTweet>, tag: String, content: String) -> Result<()> {
 		instructions::tweet::send_tweet(ctx, tag, content)
 	}
@@ -23,6 +24,11 @@ pub mod anchor_solana_twitter {
 		instructions::tweet::update_tweet(ctx, new_tag, new_content)
 	}
 
+	pub fn delete_tweet(_ctx: Context<DeleteTweet>) -> Result<()> {
+		instructions::tweet::delete_tweet(_ctx)
+	}
+
+	// Comment
 	pub fn send_comment(
 		ctx: Context<SendComment>,
 		tweet: Pubkey,
@@ -36,23 +42,34 @@ pub mod anchor_solana_twitter {
 		instructions::comment::update_comment(ctx, new_content)
 	}
 
+	pub fn delete_comment(_ctx: Context<DeleteComment>) -> Result<()> {
+		instructions::comment::delete_comment(_ctx)
+	}
+
+	// Voting
 	pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<()> {
-        instructions::voting::vote(ctx, tweet, result)
+		instructions::voting::vote(ctx, tweet, result)
 	}
 
 	pub fn update_voting(ctx: Context<UpdateVoting>, new_result: VotingResult) -> Result<()> {
 		instructions::update_voting(ctx, new_result)
 	}
 
+	// DM
 	pub fn send_dm(ctx: Context<SendDm>, recipient: Pubkey, content: String) -> Result<()> {
-        instructions::send_dm(ctx, recipient, content)
+		instructions::send_dm(ctx, recipient, content)
 	}
 
-	pub fn create_alias(ctx: Context<CreateUserAlias>, alias: String) -> Result<()> {
-        instructions::create_alias(ctx, alias)
+	// User alias
+	pub fn create_user_alias(ctx: Context<CreateUserAlias>, alias: String) -> Result<()> {
+		instructions::create_user_alias(ctx, alias)
 	}
 
 	pub fn update_user_alias(ctx: Context<UpdateUserAlias>, new_alias: String) -> Result<()> {
 		instructions::update_user_alias(ctx, new_alias)
+	}
+
+	pub fn delete_user_alias(_ctx: Context<DeleteUserAlias>) -> Result<()> {
+		instructions::user_alias::delete_user_alias(_ctx)
 	}
 }

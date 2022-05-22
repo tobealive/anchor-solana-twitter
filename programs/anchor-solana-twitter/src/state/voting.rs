@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[account]
 pub struct Voting {
-	// pub user: Pubkey,
+	pub user: Pubkey,
 	pub tweet: Pubkey,
 	pub timestamp: i64,
 	pub result: VotingResult,
@@ -11,8 +11,8 @@ pub struct Voting {
 
 #[derive(Accounts)]
 pub struct Vote<'info> {
-    // space: 8 discriminator + 32 tweet + 8 timestamp + 1 voting result + 1 bump
-	#[account(init, payer = user, space = 8 + 32 + 8 + 1 + 1, seeds = [b"voting", user.key().as_ref()], bump)]
+    // space: 8 discriminator + 32 user + 32 tweet + 8 timestamp + 1 voting result + 1 bump
+	#[account(init, payer = user, space = 8 + 32 + 32 + 8 + 1 + 1, seeds = [b"voting", user.key().as_ref()], bump)]
 	pub voting: Account<'info, Voting>,
 	pub system_program: Program<'info, System>,
 	#[account(mut)]
