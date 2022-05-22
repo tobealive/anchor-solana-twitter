@@ -8,4 +8,3 @@ pub const ALIAS_MAX: usize = 50 * 4;
 pub const EDITED: usize = 1; // bool
 pub const VOTING_RESULT: usize = 1; // enum
 pub const BUMP: usize = 1; // enum
-

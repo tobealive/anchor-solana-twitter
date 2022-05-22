@@ -25,4 +25,3 @@ pub struct SendDm<'info> {
 	pub user: Signer<'info>,
 	pub system_program: Program<'info, System>,
 }
-
