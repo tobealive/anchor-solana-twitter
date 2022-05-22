@@ -16,11 +16,7 @@ pub mod anchor_solana_twitter {
 		instructions::tweet::send_tweet(ctx, tag, content)
 	}
 
-	pub fn update_tweet(
-		ctx: Context<UpdateTweet>,
-		new_tag: String,
-		new_content: String,
-	) -> Result<()> {
+	pub fn update_tweet(ctx: Context<UpdateTweet>, new_tag: String, new_content: String) -> Result<()> {
 		instructions::tweet::update_tweet(ctx, new_tag, new_content)
 	}
 
@@ -29,12 +25,7 @@ pub mod anchor_solana_twitter {
 	}
 
 	// Comment
-	pub fn send_comment(
-		ctx: Context<SendComment>,
-		tweet: Pubkey,
-		content: String,
-		parent: Option<Pubkey>,
-	) -> Result<()> {
+	pub fn send_comment(ctx: Context<SendComment>, tweet: Pubkey, content: String, parent: Option<Pubkey>,) -> Result<()> {
 		instructions::comment::send_comment(ctx, tweet, content, parent)
 	}
 

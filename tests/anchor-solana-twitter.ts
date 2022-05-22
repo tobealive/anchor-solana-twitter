@@ -319,7 +319,8 @@ describe("anchor-solana-twitter", () => {
 		assert.equal(Object.keys(updatedVoting.result)[0], "like");
 	});
 
-	it("can filter a users favorite(upvoted) tweets", async () => {
+	it("can filter a users voted tweets", async () => {
+		// eventually to filter favorite tweets
 		const votings = await program.account.voting.all([
 			{
 				memcmp: {
@@ -330,7 +331,7 @@ describe("anchor-solana-twitter", () => {
 			},
 		]);
 		assert.equal(votings.length, 1);
-		assert.ok(votings.every((favorite) => favorite.account.user.toBase58() === userOne.publicKey.toBase58()));
+		assert.ok(votings.every((voting) => voting.account.user.toBase58() === userOne.publicKey.toBase58()));
 	});
 
 	it("can send a direct message to another user", async () => {
