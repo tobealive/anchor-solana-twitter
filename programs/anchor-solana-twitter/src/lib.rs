@@ -13,33 +13,33 @@ pub mod anchor_solana_twitter {
 
 	// Tweet
 	pub fn send_tweet(ctx: Context<SendTweet>, tag: String, content: String) -> Result<()> {
-		instructions::tweet::send_tweet(ctx, tag, content)
+		instructions::send_tweet(ctx, tag, content)
 	}
 
 	pub fn update_tweet(ctx: Context<UpdateTweet>, new_tag: String, new_content: String) -> Result<()> {
-		instructions::tweet::update_tweet(ctx, new_tag, new_content)
+		instructions::update_tweet(ctx, new_tag, new_content)
 	}
 
 	pub fn delete_tweet(_ctx: Context<DeleteTweet>) -> Result<()> {
-		instructions::tweet::delete_tweet(_ctx)
+		instructions::delete_tweet(_ctx)
 	}
 
 	// Comment
 	pub fn send_comment(ctx: Context<SendComment>, tweet: Pubkey, content: String, parent: Option<Pubkey>,) -> Result<()> {
-		instructions::comment::send_comment(ctx, tweet, content, parent)
+		instructions::send_comment(ctx, tweet, content, parent)
 	}
 
 	pub fn update_comment(ctx: Context<UpdateComment>, new_content: String) -> Result<()> {
-		instructions::comment::update_comment(ctx, new_content)
+		instructions::update_comment(ctx, new_content)
 	}
 
 	pub fn delete_comment(_ctx: Context<DeleteComment>) -> Result<()> {
-		instructions::comment::delete_comment(_ctx)
+		instructions::delete_comment(_ctx)
 	}
 
 	// Voting
 	pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<()> {
-		instructions::voting::vote(ctx, tweet, result)
+		instructions::vote(ctx, tweet, result)
 	}
 
 	pub fn update_voting(ctx: Context<UpdateVoting>, new_result: VotingResult) -> Result<()> {
@@ -61,6 +61,6 @@ pub mod anchor_solana_twitter {
 	}
 
 	pub fn delete_user_alias(_ctx: Context<DeleteUserAlias>) -> Result<()> {
-		instructions::user_alias::delete_user_alias(_ctx)
+		instructions::delete_user_alias(_ctx)
 	}
 }

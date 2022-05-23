@@ -8,15 +8,12 @@ import * as bs58 from "bs58";
 describe("anchor-solana-twitter", () => {
 	const program = anchor.workspace.AnchorSolanaTwitter as Program<AnchorSolanaTwitter>;
 	const programProvider = anchor.AnchorProvider.env() as anchor.AnchorProvider;
-
-	// Configure the client to use the local cluster
 	anchor.setProvider(programProvider);
 
-	// Generate keypairs on global instead of function-scope for re-usage
+	// Users
 	const userOne = programProvider.wallet;
 	const userTwo = anchor.web3.Keypair.generate();
-	// Hardcoded address(e.g. your phantom wallet). Useful for tests in the frontend (e.g., to test dms)
-	// alternatively change the recipient to one of the other users publicKey
+	// Hardcoded address(e.g. your phantom wallet). Useful for tests in the frontend(e.g., to test dms)
 	const dmRecipient = new PublicKey("7aCWNQmgu5oi4W9kQBRRiuBkUMqCuj5xTA1DsT7vz8qa");
 
 	it("can send and update tweets", async () => {
@@ -95,7 +92,7 @@ describe("anchor-solana-twitter", () => {
 			.signers(user instanceof (anchor.Wallet as any) ? [tweetKeypair] : [user, tweetKeypair])
 			.rpc();
 
-		return tweetKeypair
+		return tweetKeypair;
 	};
 
 	it("can send a tweet without a tag", async () => {
@@ -115,30 +112,30 @@ describe("anchor-solana-twitter", () => {
 			.deleteTweet()
 			.accounts({
 				tweet: tweet.publicKey,
-				user: userOne.publicKey
+				user: userOne.publicKey,
 			})
 			.rpc();
 
 		assert.ok((await program.account.tweet.fetchNullable(tweet.publicKey)) === null);
 
 		// Send tweet #4
-		const tweetTwo = await sendTweet(userTwo, 'solana', 'gm');
+		const tweetTwo = await sendTweet(userTwo, "solana", "gm");
 		// Try to delete other users tweet
 		try {
-			await program.methods.
-				deleteTweet()
+			await program.methods
+				.deleteTweet()
 				.accounts({
 					tweet: tweetTwo.publicKey,
-					user: userOne.publicKey
+					user: userOne.publicKey,
 				})
-				.rpc()
+				.rpc();
 
 			assert.fail("We shouldn't be able to delete someone else's tweet but did.");
 		} catch (error) {
 			// Check if tweet account still exists with the right data
 			const tweetTwoState = await program.account.tweet.fetch(tweetTwo.publicKey);
-			assert.equal(tweetTwoState.tag, 'solana');
-			assert.equal(tweetTwoState.content, 'gm');
+			assert.equal(tweetTwoState.tag, "solana");
+			assert.equal(tweetTwoState.content, "gm");
 		}
 	});
 
@@ -228,7 +225,7 @@ describe("anchor-solana-twitter", () => {
 	});
 
 	it("can send, update and delete comments", async () => {
-		// Helper function that calls the "SendComment" instruction 
+		// Helper function that calls the "SendComment" instruction
 		const sendComment = async (user, tweetParent: PublicKey, content: string, directParent: PublicKey) => {
 			const commentKeypair = anchor.web3.Keypair.generate();
 			await program.methods
@@ -241,14 +238,14 @@ describe("anchor-solana-twitter", () => {
 				.signers(user instanceof (anchor.Wallet as any) ? [commentKeypair] : [user, commentKeypair])
 				.rpc();
 
-			return commentKeypair
+			return commentKeypair;
 		};
 
 		// Send tweet to comment on
 		const tweet = await sendTweet(userOne, "comment", "on me!");
 
 		// Send comment
-		const tweetComment = await sendComment(userOne, tweet.publicKey, "Everything alright with u?", null)
+		const tweetComment = await sendComment(userOne, tweet.publicKey, "Everything alright with u?", null);
 		assert.equal(
 			(await program.account.comment.fetch(tweetComment.publicKey)).tweet.toBase58(),
 			tweet.publicKey.toBase58()
@@ -268,7 +265,7 @@ describe("anchor-solana-twitter", () => {
 		assert.equal(updatedTweetComment.edited, true);
 
 		// Comment on a comment
-		const commentComment = await sendComment(userOne, tweet.publicKey, "I hope he's well", tweetComment.publicKey)
+		const commentComment = await sendComment(userOne, tweet.publicKey, "I hope he's well", tweetComment.publicKey);
 		const commentCommentState = await program.account.comment.fetch(commentComment.publicKey);
 		assert.equal(commentCommentState.tweet.toBase58(), tweet.publicKey.toBase58());
 		assert.equal(commentCommentState.parent.toBase58(), tweetComment.publicKey.toBase58());
@@ -278,7 +275,7 @@ describe("anchor-solana-twitter", () => {
 			.deleteComment()
 			.accounts({
 				comment: tweetComment.publicKey,
-				user: userOne.publicKey
+				user: userOne.publicKey,
 			})
 			.rpc();
 
@@ -291,7 +288,6 @@ describe("anchor-solana-twitter", () => {
 			program.programId
 		);
 		const goodTweet = await sendTweet(userOne, "Linux", "Don't forget about the GNU 🦬");
-
 
 		await program.methods
 			.vote(goodTweet.publicKey, { dislike: {} })
@@ -311,7 +307,7 @@ describe("anchor-solana-twitter", () => {
 			.updateVoting({ like: {} })
 			.accounts({
 				user: userOne.publicKey,
-				voting: votingPDA
+				voting: votingPDA,
 			})
 			.rpc();
 
@@ -324,8 +320,7 @@ describe("anchor-solana-twitter", () => {
 		const votings = await program.account.voting.all([
 			{
 				memcmp: {
-					offset:
-						8, // Discriminator
+					offset: 8, // Discriminator
 					bytes: userOne.publicKey.toBase58(),
 				},
 			},
