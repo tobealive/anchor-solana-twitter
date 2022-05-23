@@ -34,6 +34,6 @@ Change the destination of the [provider] wallet in `Anchor.toml` according to yo
 Building and running the test happens with `anchor test`.
 
 To use the tests while working on a frontend run the localnet with `anchor localnet` in one terminal.<br>
-In another terminal airdrop your wallet some sola and load the test `solana airdrop 1000 <YourPhantomWalletPubKey> && anchor run test`.
+In another terminal airdrop your wallet some sol and load the test `solana airdrop 1000 <YourPhantomWalletPubKey> && anchor run test`.
 
 <img src="assets/tests.jpg" alt="drawing" width="700"/>
