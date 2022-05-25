@@ -25,7 +25,7 @@ Aims to update, refactor and extend the v1-branch.
 
 ## Tests
 
-The installation of the prerequisites of an anchor program is nicely explained in the [anchor book][1]
+The installation of the prerequisites to run an anchor program is nicely explained in the [anchor book][1]
 
 Having the prerequisites out of the way `yarn install` will load some program dependencies.
 
