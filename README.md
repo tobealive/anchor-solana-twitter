@@ -25,15 +25,17 @@ Aims to update, refactor and extend the v1-branch.
 
 ## Tests
 
-Needless to say that the system dependencies are solana and anchor.
+The installation of the prerequisites of an anchor program is nicely explained in the [anchor book][1]
 
-`yarn install` loads some program dependencies.
+Having the prerequisites out of the way `yarn install` will load some program dependencies.
 
-Change the destination of the [provider] wallet in `Anchor.toml` according to your systems configuration.
+To run the tests change the destination of the [provider] wallet in `Anchor.toml` according to your systems configuration.
 
 Building and running the test happens with `anchor test`.
 
-To use the tests while working on a frontend run the localnet with `anchor localnet` in one terminal.<br>
+To use the tests while working on a frontend run the localnet with `anchor localnet`.<br>
 In another terminal airdrop your wallet some sol and load the test `solana airdrop 1000 <YourPhantomWalletPubKey> && anchor run test`.
 
 <img src="assets/tests.jpg" alt="drawing" width="700"/>
+
+[1]: https://book.anchor-lang.com/getting_started/installation.html
