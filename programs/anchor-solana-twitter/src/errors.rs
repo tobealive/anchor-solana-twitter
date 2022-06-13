@@ -8,11 +8,10 @@ pub enum ErrorCode {
 	NoContent,
 	#[msg("Exceeding maximum content length of 280 characters")]
 	ContentTooLong,
-	#[msg("Nothing that could be updated")]
+	#[msg("No changes detected. Nothing that could be updated")]
 	NothingChanged,
 	#[msg("Trying to send an invalid vote")]
-    // NOTE: unused
-	InvalidVote,
+	InvalidVote, // NOTE: currently unused
 	#[msg("An alias for this user is already registered")]
 	AliasPresent,
 	#[msg("Exceeding maximum tag length of 50 characters.")]

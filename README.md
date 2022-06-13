@@ -25,17 +25,42 @@ Aims to update, refactor and extend the v1-branch.
 
 ## Tests
 
-The installation of the prerequisites to run an anchor program is nicely explained in the [anchor book][1].
+How to install the prerequisites to run an anchor program, is nicely explained in the [anchor book][1].
 
-Having the prerequisites out of the way `yarn install` will load some program dependencies.
+Having the prerequisites out of the way, the `yarn` command will load some program dependencies.
 
-To run the tests change the destination of the [provider] wallet in `Anchor.toml` according to your systems configuration.
+To then be able to run the tests: change the destination of **`wallet`** under the `[provider]` section in the `Anchor.toml` file according to your systems configuration. 
+Usually, it should be enough to change the home path.
 
 Building and running the test happens with `anchor test`.
 
 To use the tests while working on a frontend run the localnet with `anchor localnet`.<br>
-In another terminal airdrop your wallet some sol and load the test `solana airdrop 1000 <YourPhantomWalletPubKey> && anchor run test`.
+In another terminal airdrop your wallet some SOL and load the test `solana airdrop 1000 <YourPhantomWalletPubKey> && anchor run test`.
 
-<img src="assets/tests.jpg" alt="drawing" width="700"/>
+### Test results preview
+
+```
+❯ anchor test                                                                                              
+anchor-solana-twitter
+ tweets
+   ✔ can send and update tweets
+   ✔ can send a tweet without a tag
+   ✔ can delete own tweets
+   ✔ cannot send a tweet without content
+   ✔ cannot send a tweet with a tag > 50 or content > 280 characters
+   ✔ cannot update a tweet without changes
+   ✔ can fetch and filter tweets
+ comments
+   ✔ can send, update and delete comments
+ votings
+   ✔ can vote and update a voting on a tweet
+   ✔ can filter tweets a user has voted on
+ direct messages
+   ✔ can send a direct message to another user
+   ✔ can fetch and filter a users direct messages
+ user alias
+   ✔ can create, update and delete a user alias
+```
 
 [1]: https://book.anchor-lang.com/getting_started/installation.html
+
