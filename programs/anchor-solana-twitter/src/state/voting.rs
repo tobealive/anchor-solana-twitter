@@ -10,9 +10,14 @@ pub struct Voting {
 }
 
 #[derive(Accounts)]
+#[instruction(tweet: Pubkey)]
 pub struct Vote<'info> {
-    // space: 8 discriminator + 32 user + 32 tweet + 8 timestamp + 1 voting result + 1 bump
-	#[account(init, payer = user, space = 8 + 32 + 32 + 8 + 1 + 1, seeds = [b"voting", user.key().as_ref()], bump)]
+	#[account(init, 
+        payer = user, 
+        // 8 discriminator + 32 user + 32 tweet + 8 timestamp + 1 voting result + 1 bump
+        space = 8 + 32 + 32 + 8 + 1 + 1, 
+        seeds = [b"voting", user.key().as_ref(), tweet.key().as_ref()], 
+        bump)]
 	pub voting: Account<'info, Voting>,
 	pub system_program: Program<'info, System>,
 	#[account(mut)]
@@ -22,7 +27,9 @@ pub struct Vote<'info> {
 #[derive(Accounts)]
 pub struct UpdateVoting<'info> {
 	pub user: Signer<'info>,
-	#[account(mut, seeds = [b"voting", user.key().as_ref()], bump = voting.bump)]
+	#[account(mut,
+        seeds = [b"voting", user.key().as_ref(), voting.tweet.key().as_ref()], 
+        bump = voting.bump)]
 	pub voting: Account<'info, Voting>,
 }
 

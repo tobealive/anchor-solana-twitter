@@ -38,8 +38,8 @@ pub mod anchor_solana_twitter {
 	}
 
 	// Voting
-	pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<()> {
-		instructions::vote(ctx, tweet, result)
+	pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult, voting_bump: u8) -> Result<()> {
+		instructions::vote(ctx, tweet, result, voting_bump)
 	}
 
 	pub fn update_voting(ctx: Context<UpdateVoting>, new_result: VotingResult) -> Result<()> {

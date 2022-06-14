@@ -2,16 +2,16 @@ use crate::errors::ErrorCode;
 use crate::state::voting::*;
 use anchor_lang::prelude::*;
 
-pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult) -> Result<()> {
+pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult, voting_bump: u8) -> Result<()> {
 	let voting = &mut ctx.accounts.voting;
-	let user = &ctx.accounts.user;
 	let clock: Clock = Clock::get().unwrap();
 
-	voting.user = *user.key;
+	voting.user = *ctx.accounts.user.key;
 	voting.tweet = tweet;
 	voting.timestamp = clock.unix_timestamp;
 	voting.result = result;
-	voting.bump = *ctx.bumps.get("voting").unwrap();
+	voting.bump = voting_bump;
+	// voting.bump = *ctx.bumps.get("voting").unwrap();
 
 	Ok(())
 }
