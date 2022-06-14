@@ -1,7 +1,7 @@
 import * as anchor from "@project-serum/anchor";
 import * as assert from "assert";
 import * as bs58 from "bs58";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Keypair } from "@solana/web3.js";
 import { AnchorSolanaTwitter } from "../target/types/anchor_solana_twitter";
 
 describe("anchor-solana-twitter", () => {
@@ -16,14 +16,14 @@ describe("anchor-solana-twitter", () => {
 
 	// { == Helper functions ==>
 	const createUser = async () => {
-		const userKeypair = anchor.web3.Keypair.generate();
+		const userKeypair = Keypair.generate();
 		const userSignature = await provider.connection.requestAirdrop(userKeypair.publicKey, 10 * anchor.web3.LAMPORTS_PER_SOL);
 		await provider.connection.confirmTransaction(userSignature);
 		return userKeypair
 	}
 
 	const sendTweet = async (user: any, tag: string, content: string) => {
-		const tweetKeypair = anchor.web3.Keypair.generate();
+		const tweetKeypair = Keypair.generate();
 
 		await program.methods.sendTweet(tag, content)
 			.accounts({
@@ -38,8 +38,8 @@ describe("anchor-solana-twitter", () => {
 		return { publicKey: tweetKeypair.publicKey, account: tweet }
 	};
 
-	const sendComment = async (user: any, tweetParent: PublicKey, content: string, directParent: PublicKey) => {
-		const commentKeypair = anchor.web3.Keypair.generate();
+	const sendComment = async ({ user, tweetParent, content, directParent }: { user: any; tweetParent: PublicKey; content: string; directParent: PublicKey; }) => {
+		const commentKeypair = Keypair.generate();
 
 		await program.methods.sendComment(tweetParent, content, directParent)
 			.accounts({
@@ -54,8 +54,8 @@ describe("anchor-solana-twitter", () => {
 		return { publicKey: commentKeypair.publicKey, account: comment }
 	};
 
-	const vote = async (user: any, tweet: PublicKey, result) => {
-		const [votingPDA, bump] = await anchor.web3.PublicKey.findProgramAddress([
+	const vote = async (user: any, tweet: PublicKey, result: {}) => {
+		const [votingPDA, bump] = await PublicKey.findProgramAddress([
 			anchor.utils.bytes.utf8.encode("voting"),
 			user.publicKey.toBuffer(),
 			tweet.toBuffer(),
@@ -73,7 +73,6 @@ describe("anchor-solana-twitter", () => {
 
 	// { == Tests ==> 
 	describe("tweets", () => {
-
 		it("can send and update tweets", async () => {
 			// Send tweet #1
 			const tweet = await sendTweet(user, "veganism", "Hummus, am i right 🧆?");
@@ -113,31 +112,6 @@ describe("anchor-solana-twitter", () => {
 			assert.equal(tweet.account.tag, "");
 			assert.equal(tweet.account.content, "gm");
 			assert.ok(tweet.account.timestamp);
-		});
-
-		it("can delete own tweets", async () => {
-			const tweetToDelete = await sendTweet(user, "", "gm");
-
-			await program.methods.deleteTweet()
-				.accounts({ tweet: tweetToDelete.publicKey, user: user.publicKey })
-				.rpc();
-			assert.ok((await program.account.tweet.fetchNullable(tweetToDelete.publicKey)) === null);
-
-			// Try to delete other users tweet
-			const otherUser = await createUser();
-			// Send tweet #4
-			const tweet = await sendTweet(otherUser, "solana", "gm");
-			try {
-				await program.methods.deleteTweet()
-					.accounts({ tweet: tweet.publicKey, user: user.publicKey })
-					.rpc();
-				assert.fail("We shouldn't be able to delete someone else's tweet but did.");
-			} catch (error) {
-				// Check if tweet account still exists with the right data
-				const tweetState = await program.account.tweet.fetch(tweet.publicKey);
-				assert.equal(tweetState.tag, "solana");
-				assert.equal(tweetState.content, "gm");
-			}
 		});
 
 		it("cannot send a tweet without content", async () => {
@@ -182,6 +156,31 @@ describe("anchor-solana-twitter", () => {
 			assert.fail("The instruction should have failed with a tweet without changes.");
 		});
 
+		it("can delete own tweets", async () => {
+			const tweetToDelete = await sendTweet(user, "", "gm");
+
+			await program.methods.deleteTweet()
+				.accounts({ tweet: tweetToDelete.publicKey, user: user.publicKey })
+				.rpc();
+			assert.ok((await program.account.tweet.fetchNullable(tweetToDelete.publicKey)) === null);
+
+			// Try to delete other users tweet
+			const otherUser = await createUser();
+			// Send tweet #4
+			const tweet = await sendTweet(otherUser, "solana", "gm");
+			try {
+				await program.methods.deleteTweet()
+					.accounts({ tweet: tweet.publicKey, user: user.publicKey })
+					.rpc();
+				assert.fail("We shouldn't be able to delete someone else's tweet but did.");
+			} catch (error) {
+				// Check if tweet account still exists with the right data
+				const tweetState = await program.account.tweet.fetch(tweet.publicKey);
+				assert.equal(tweetState.tag, "solana");
+				assert.equal(tweetState.content, "gm");
+			}
+		});
+
 		it("can fetch and filter tweets", async () => {
 			const allTweets = await program.account.tweet.all();
 			assert.equal(allTweets.length, 5);
@@ -208,7 +207,7 @@ describe("anchor-solana-twitter", () => {
 			const tweet = await sendTweet(user, "comment", "on me!");
 
 			// Send comment
-			const tweetComment = await sendComment(user, tweet.publicKey, "Everything alright with u?", null);
+			const tweetComment = await sendComment({ user, tweetParent: tweet.publicKey, content: "Everything alright with u?", directParent: null });
 			assert.equal(tweetComment.account.tweet.toBase58(), tweet.publicKey.toBase58());
 
 			// Update comment
@@ -220,7 +219,7 @@ describe("anchor-solana-twitter", () => {
 			assert.equal(updatedTweetComment.edited, true);
 
 			// Comment on a comment
-			const commentComment = await sendComment(user, tweet.publicKey, "I hope he's well", tweetComment.publicKey);
+			const commentComment = await sendComment({ user, tweetParent: tweet.publicKey, content: "I hope he's well", directParent: tweetComment.publicKey });
 			assert.equal(commentComment.account.tweet.toBase58(), tweet.publicKey.toBase58());
 			assert.equal(commentComment.account.parent.toBase58(), tweetComment.publicKey.toBase58());
 
@@ -271,7 +270,7 @@ describe("anchor-solana-twitter", () => {
 
 	describe("direct messages", () => {
 		it("can send a direct message to another user", async () => {
-			const dmKeypair = anchor.web3.Keypair.generate();
+			const dmKeypair = Keypair.generate();
 			await program.methods.sendDm(dmRecipient, "Hey what's up?")
 				.accounts({
 					dm: dmKeypair.publicKey,
