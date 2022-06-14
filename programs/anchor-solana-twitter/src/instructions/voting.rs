@@ -11,7 +11,6 @@ pub fn vote(ctx: Context<Vote>, tweet: Pubkey, result: VotingResult, voting_bump
 	voting.timestamp = clock.unix_timestamp;
 	voting.result = result;
 	voting.bump = voting_bump;
-	// voting.bump = *ctx.bumps.get("voting").unwrap();
 
 	Ok(())
 }
