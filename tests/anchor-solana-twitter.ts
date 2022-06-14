@@ -1,12 +1,11 @@
 import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
-import { AnchorSolanaTwitter } from "../target/types/anchor_solana_twitter";
-import { PublicKey, Keypair } from "@solana/web3.js";
 import * as assert from "assert";
 import * as bs58 from "bs58";
+import { PublicKey } from "@solana/web3.js";
+import { AnchorSolanaTwitter } from "../target/types/anchor_solana_twitter";
 
 describe("anchor-solana-twitter", () => {
-	const program = anchor.workspace.AnchorSolanaTwitter as Program<AnchorSolanaTwitter>;
+	const program = anchor.workspace.AnchorSolanaTwitter as anchor.Program<AnchorSolanaTwitter>;
 	const provider = anchor.AnchorProvider.env() as anchor.AnchorProvider;
 	anchor.setProvider(provider);
 
@@ -25,6 +24,7 @@ describe("anchor-solana-twitter", () => {
 
 	const sendTweet = async (user: any, tag: string, content: string) => {
 		const tweetKeypair = anchor.web3.Keypair.generate();
+
 		await program.methods.sendTweet(tag, content)
 			.accounts({
 				tweet: tweetKeypair.publicKey,
@@ -33,11 +33,14 @@ describe("anchor-solana-twitter", () => {
 			})
 			.signers(user instanceof (anchor.Wallet as any) ? [tweetKeypair] : [user, tweetKeypair])
 			.rpc();
-		return tweetKeypair;
+
+		const tweet = await program.account.tweet.fetch(tweetKeypair.publicKey);
+		return { publicKey: tweetKeypair.publicKey, account: tweet }
 	};
 
 	const sendComment = async (user: any, tweetParent: PublicKey, content: string, directParent: PublicKey) => {
 		const commentKeypair = anchor.web3.Keypair.generate();
+
 		await program.methods.sendComment(tweetParent, content, directParent)
 			.accounts({
 				comment: commentKeypair.publicKey,
@@ -46,8 +49,26 @@ describe("anchor-solana-twitter", () => {
 			})
 			.signers(user instanceof (anchor.Wallet as any) ? [commentKeypair] : [user, commentKeypair])
 			.rpc();
-		return commentKeypair;
+
+		const comment = await program.account.comment.fetch(commentKeypair.publicKey);
+		return { publicKey: commentKeypair.publicKey, account: comment }
 	};
+
+	const vote = async (user: any, tweet: PublicKey, result) => {
+		const [votingPDA, bump] = await anchor.web3.PublicKey.findProgramAddress([
+			anchor.utils.bytes.utf8.encode("voting"),
+			user.publicKey.toBuffer(),
+			tweet.toBuffer(),
+		], program.programId);
+
+		await program.methods.vote(tweet, result, bump)
+			.accounts({ user: user.publicKey, voting: votingPDA })
+			.signers(user instanceof (anchor.Wallet as any) ? [] : [user])
+			.rpc();
+
+		const voting = await program.account.voting.fetch(votingPDA);
+		return { pda: votingPDA, account: voting }
+	}
 	// <== }
 
 	// { == Tests ==> 
@@ -57,22 +78,20 @@ describe("anchor-solana-twitter", () => {
 			// Send tweet #1
 			const tweet = await sendTweet(user, "veganism", "Hummus, am i right 🧆?");
 			// Fetch the created tweet
-			const tweetState = await program.account.tweet.fetch(tweet.publicKey);
 			// Ensure it has the right data
-			assert.equal(tweetState.user.toBase58(), provider.wallet.publicKey.toBase58());
-			assert.equal(tweetState.tag, "veganism");
-			assert.equal(tweetState.content, "Hummus, am i right 🧆?");
-			assert.ok(tweetState.timestamp);
+			assert.equal(tweet.account.user.toBase58(), provider.wallet.publicKey.toBase58());
+			assert.equal(tweet.account.tag, "veganism");
+			assert.equal(tweet.account.content, "Hummus, am i right 🧆?");
+			assert.ok(tweet.account.timestamp);
 
 			const otherUser = await createUser();
 
 			// Send tweet #2
 			const tweetTwo = await sendTweet(otherUser, "veganism", "Yay Tofu 🍜!");
-			const tweetTwoState = await program.account.tweet.fetch(tweetTwo.publicKey);
-			assert.equal(tweetTwoState.user.toBase58(), otherUser.publicKey.toBase58());
-			assert.equal(tweetTwoState.tag, "veganism");
-			assert.equal(tweetTwoState.content, "Yay Tofu 🍜!");
-			assert.ok(tweetTwoState.timestamp);
+			assert.equal(tweetTwo.account.user.toBase58(), otherUser.publicKey.toBase58());
+			assert.equal(tweetTwo.account.tag, "veganism");
+			assert.equal(tweetTwo.account.content, "Yay Tofu 🍜!");
+			assert.ok(tweetTwo.account.timestamp);
 
 			// Update tweet #2
 			await program.methods.updateTweet("baneyneys", "Freshavacados!")
@@ -90,11 +109,10 @@ describe("anchor-solana-twitter", () => {
 		it("can send a tweet without a tag", async () => {
 			// Send tweet #3 (#2 by userOne)
 			const tweet = await sendTweet(user, "", "gm");
-			const tweetState = await program.account.tweet.fetch(tweet.publicKey);
-			assert.equal(tweetState.user.toBase58(), provider.wallet.publicKey.toBase58());
-			assert.equal(tweetState.tag, "");
-			assert.equal(tweetState.content, "gm");
-			assert.ok(tweetState.timestamp);
+			assert.equal(tweet.account.user.toBase58(), provider.wallet.publicKey.toBase58());
+			assert.equal(tweet.account.tag, "");
+			assert.equal(tweet.account.content, "gm");
+			assert.ok(tweet.account.timestamp);
 		});
 
 		it("can delete own tweets", async () => {
@@ -113,13 +131,12 @@ describe("anchor-solana-twitter", () => {
 				await program.methods.deleteTweet()
 					.accounts({ tweet: tweet.publicKey, user: user.publicKey })
 					.rpc();
-
 				assert.fail("We shouldn't be able to delete someone else's tweet but did.");
 			} catch (error) {
 				// Check if tweet account still exists with the right data
-				const tweetTwoState = await program.account.tweet.fetch(tweet.publicKey);
-				assert.equal(tweetTwoState.tag, "solana");
-				assert.equal(tweetTwoState.content, "gm");
+				const tweetState = await program.account.tweet.fetch(tweet.publicKey);
+				assert.equal(tweetState.tag, "solana");
+				assert.equal(tweetState.content, "gm");
 			}
 		});
 
@@ -149,10 +166,9 @@ describe("anchor-solana-twitter", () => {
 		it("cannot update a tweet without changes", async () => {
 			// Send tweet #5 (#3 by userOne)
 			const tweet = await sendTweet(user, "web3", "takes over!");
-			const tweetState = await program.account.tweet.fetch(tweet.publicKey);
-			assert.equal(tweetState.tag, "web3");
-			assert.equal(tweetState.content, "takes over!");
-			assert.equal(tweetState.edited, false);
+			assert.equal(tweet.account.tag, "web3");
+			assert.equal(tweet.account.content, "takes over!");
+			assert.equal(tweet.account.edited, false);
 
 			// Try to update tweet with same topic and content
 			try {
@@ -193,25 +209,20 @@ describe("anchor-solana-twitter", () => {
 
 			// Send comment
 			const tweetComment = await sendComment(user, tweet.publicKey, "Everything alright with u?", null);
-			assert.equal((await program.account.comment.fetch(tweetComment.publicKey))
-				.tweet.toBase58(),
-				tweet.publicKey.toBase58()
-			);
+			assert.equal(tweetComment.account.tweet.toBase58(), tweet.publicKey.toBase58());
 
 			// Update comment
 			await program.methods.updateComment("Everything alright with *you?")
 				.accounts({ comment: tweetComment.publicKey, user: user.publicKey })
 				.rpc();
-
 			const updatedTweetComment = await program.account.comment.fetch(tweetComment.publicKey);
 			assert.equal(updatedTweetComment.content, "Everything alright with *you?");
 			assert.equal(updatedTweetComment.edited, true);
 
 			// Comment on a comment
 			const commentComment = await sendComment(user, tweet.publicKey, "I hope he's well", tweetComment.publicKey);
-			const commentCommentState = await program.account.comment.fetch(commentComment.publicKey);
-			assert.equal(commentCommentState.tweet.toBase58(), tweet.publicKey.toBase58());
-			assert.equal(commentCommentState.parent.toBase58(), tweetComment.publicKey.toBase58());
+			assert.equal(commentComment.account.tweet.toBase58(), tweet.publicKey.toBase58());
+			assert.equal(commentComment.account.parent.toBase58(), tweetComment.publicKey.toBase58());
 
 			// Delete comment -  NOTE: currently no handling of child elements on parent delete
 			await program.methods.deleteComment()
@@ -222,39 +233,39 @@ describe("anchor-solana-twitter", () => {
 	})
 
 	describe("votings", () => {
-		it("can vote and update a voting on a tweet", async () => {
-			const [votingPDA, _] = await PublicKey.findProgramAddress(
-				[anchor.utils.bytes.utf8.encode("voting"), user.publicKey.toBuffer()],
-				program.programId
-			);
-			const goodTweet = await sendTweet(user, "Linux", "Don't forget about the GNU 🦬");
-
-			await program.methods.vote(goodTweet.publicKey, { dislike: {} })
-				.accounts({ user: user.publicKey, voting: votingPDA })
-				.rpc();
-
-			const voting = await program.account.voting.fetch(votingPDA);
-			assert.equal(voting.tweet.toBase58(), goodTweet.publicKey.toBase58());
-			assert.equal(Object.keys(voting.result)[0], "dislike");
-			// assert.equal(voting.result, { like: {} })
+		it("can vote and update votings for tweets", async () => {
+			const tweet = await sendTweet(user, "Linux", "Don't forget about the GNU 🦬");
+			const voting = await vote(user, tweet.publicKey, { dislike: {} })
+			assert.equal(voting.account.tweet.toString(), tweet.publicKey.toString());
+			assert.deepEqual(voting.account.result, { dislike: {} });
 
 			// Update voting
 			await program.methods.updateVoting({ like: {} })
-				.accounts({ user: user.publicKey, voting: votingPDA })
+				.accounts({ user: user.publicKey, voting: voting.pda })
 				.rpc();
+			const updatedVoting = await program.account.voting.fetch(voting.pda);
+			assert.deepEqual(updatedVoting.result, { like: {} });
 
-			const updatedVoting = await program.account.voting.fetch(votingPDA);
-			assert.equal(Object.keys(updatedVoting.result)[0], "like");
+			// Vote for another tweet by same user
+			const anotherTweet = await sendTweet(user, "Linux", "Don't forget about the GNU 🦬");
+			const anotherVoting = await vote(user, anotherTweet.publicKey, { like: {} })
+			assert.equal(anotherVoting.account.tweet.toString(), anotherTweet.publicKey.toString());
+			assert.deepEqual(anotherVoting.account.result, { like: {} });
+
+			// Vote for same tweet by another user
+			const otherUser = await createUser()
+			const otherUsersVoting = await vote(otherUser, tweet.publicKey, { dislike: {} })
+			assert.equal(otherUsersVoting.account.tweet.toString(), tweet.publicKey.toString());
+			assert.deepEqual(otherUsersVoting.account.result, { dislike: {} });
 		});
 
-		it("can filter tweets a user has voted on", async () => {
-			// eventually to filter favorite tweets
-			const votings = await program.account.voting.all([
+		it("can filter tweets a user has voted for", async () => {
+			const userVotings = await program.account.voting.all([
 				// offset: 8 Discriminator
 				{ memcmp: { offset: 8, bytes: user.publicKey.toBase58() } }
 			]);
-			assert.equal(votings.length, 1);
-			assert.ok(votings.every((voting) => voting.account.user.toBase58() === user.publicKey.toBase58()));
+			assert.equal(userVotings.length, 2);
+			assert.ok(userVotings.every((voting) => voting.account.user.toBase58() === user.publicKey.toBase58()));
 		});
 	})
 
@@ -310,7 +321,7 @@ describe("anchor-solana-twitter", () => {
 				.rpc();
 			assert.ok((await program.account.userAlias.fetchNullable(userAliasPDA)) === null);
 		});
-		// TODO: test alias creation for user users
+		// TODO: test alias creation for other users
 	})
 	// <== }
 });

@@ -37,29 +37,28 @@ Building and running the test happens with `anchor test`.
 To use the tests while working on a frontend run the localnet with `anchor localnet`.<br>
 In another terminal airdrop your wallet some SOL and load the test `solana airdrop 1000 <YourPhantomWalletPubKey> && anchor run test`.
 
-### Test results preview
+### Tested functionalities
 
 ```
 ❯ anchor test                                                                                              
-anchor-solana-twitter
- tweets
-   ✔ can send and update tweets
-   ✔ can send a tweet without a tag
-   ✔ can delete own tweets
-   ✔ cannot send a tweet without content
-   ✔ cannot send a tweet with a tag > 50 or content > 280 characters
-   ✔ cannot update a tweet without changes
-   ✔ can fetch and filter tweets
- comments
-   ✔ can send, update and delete comments
- votings
-   ✔ can vote and update a voting on a tweet
-   ✔ can filter tweets a user has voted on
- direct messages
-   ✔ can send a direct message to another user
-   ✔ can fetch and filter a users direct messages
- user alias
-   ✔ can create, update and delete a user alias
+tweets
+	✔ can send and update tweets
+	✔ can send a tweet without a tag
+	✔ can delete own tweets
+	✔ cannot send a tweet without content
+	✔ cannot send a tweet with a tag > 50 or content > 280 characters
+	✔ cannot update a tweet without changes
+	✔ can fetch and filter tweets
+comments
+	✔ can send, update and delete comments
+votings
+	✔ can vote and update votings for tweets
+	✔ can filter tweets a user has voted for
+direct messages
+	✔ can send a direct message to another user
+	✔ can fetch and filter a users direct messages
+user alias
+	✔ can create, update and delete a user alias
 ```
 
 [1]: https://book.anchor-lang.com/getting_started/installation.html
