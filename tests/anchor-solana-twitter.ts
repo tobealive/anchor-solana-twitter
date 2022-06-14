@@ -14,12 +14,18 @@ describe("anchor-solana-twitter", () => {
 	// Hardcode address(e.g., your  phantom wallet) to allow testing dms in frontend
 	const dmRecipient = new PublicKey("7aCWNQmgu5oi4W9kQBRRiuBkUMqCuj5xTA1DsT7vz8qa");
 
-	// { == Helper functions ==>
+	// { == Helper functions ==> 
 	const createUser = async () => {
 		const userKeypair = Keypair.generate();
 		const userSignature = await provider.connection.requestAirdrop(userKeypair.publicKey, 10 * anchor.web3.LAMPORTS_PER_SOL);
 		await provider.connection.confirmTransaction(userSignature);
 		return userKeypair
+	}
+
+	const createUsers = (num: number) => {
+		let promises = [];
+		for (let i = 0; i < num; i++) promises.push(createUser());
+		return Promise.all(promises);
 	}
 
 	const sendTweet = async (user: any, tag: string, content: string) => {
@@ -207,19 +213,19 @@ describe("anchor-solana-twitter", () => {
 			const tweet = await sendTweet(user, "comment", "on me!");
 
 			// Send comment
-			const tweetComment = await sendComment({ user, tweetParent: tweet.publicKey, content: "Everything alright with u?", directParent: null });
+			const tweetComment = await sendComment({ user, tweetParent: tweet.publicKey, content: "First 🌅", directParent: null });
 			assert.equal(tweetComment.account.tweet.toBase58(), tweet.publicKey.toBase58());
 
 			// Update comment
-			await program.methods.updateComment("Everything alright with *you?")
+			await program.methods.updateComment("First 😇")
 				.accounts({ comment: tweetComment.publicKey, user: user.publicKey })
 				.rpc();
 			const updatedTweetComment = await program.account.comment.fetch(tweetComment.publicKey);
-			assert.equal(updatedTweetComment.content, "Everything alright with *you?");
+			assert.equal(updatedTweetComment.content, "First 😇");
 			assert.equal(updatedTweetComment.edited, true);
 
 			// Comment on a comment
-			const commentComment = await sendComment({ user, tweetParent: tweet.publicKey, content: "I hope he's well", directParent: tweetComment.publicKey });
+			const commentComment = await sendComment({ user, tweetParent: tweet.publicKey, content: "Ok.", directParent: tweetComment.publicKey });
 			assert.equal(commentComment.account.tweet.toBase58(), tweet.publicKey.toBase58());
 			assert.equal(commentComment.account.parent.toBase58(), tweetComment.publicKey.toBase58());
 
@@ -233,7 +239,10 @@ describe("anchor-solana-twitter", () => {
 
 	describe("votings", () => {
 		it("can vote and update votings for tweets", async () => {
-			const tweet = await sendTweet(user, "Linux", "Don't forget about the GNU 🦬");
+			const [otherUser, confusedUser] = await createUsers(2)
+			const tweet = await sendTweet(otherUser, "Linux", "Don't forget about the GNU 🦬");
+			const anotherTweet = await sendTweet(confusedUser, "hejustwantsourbest", "I like BG 🤓");
+
 			const voting = await vote(user, tweet.publicKey, { dislike: {} })
 			assert.equal(voting.account.tweet.toString(), tweet.publicKey.toString());
 			assert.deepEqual(voting.account.result, { dislike: {} });
@@ -245,26 +254,32 @@ describe("anchor-solana-twitter", () => {
 			const updatedVoting = await program.account.voting.fetch(voting.pda);
 			assert.deepEqual(updatedVoting.result, { like: {} });
 
-			// Vote for another tweet by same user
-			const anotherTweet = await sendTweet(user, "Linux", "Don't forget about the GNU 🦬");
-			const anotherVoting = await vote(user, anotherTweet.publicKey, { like: {} })
+			// Same user votes for another tweet
+			const anotherVoting = await vote(user, anotherTweet.publicKey, { dislike: {} })
 			assert.equal(anotherVoting.account.tweet.toString(), anotherTweet.publicKey.toString());
-			assert.deepEqual(anotherVoting.account.result, { like: {} });
+			assert.deepEqual(anotherVoting.account.result, { dislike: {} });
 
-			// Vote for same tweet by another user
-			const otherUser = await createUser()
+			// A user votes for tweet that another user has already voted for
 			const otherUsersVoting = await vote(otherUser, tweet.publicKey, { dislike: {} })
 			assert.equal(otherUsersVoting.account.tweet.toString(), tweet.publicKey.toString());
 			assert.deepEqual(otherUsersVoting.account.result, { dislike: {} });
 		});
 
-		it("can filter tweets a user has voted for", async () => {
+		it("can derive tweets from a users votings", async () => {
 			const userVotings = await program.account.voting.all([
 				// offset: 8 Discriminator
 				{ memcmp: { offset: 8, bytes: user.publicKey.toBase58() } }
 			]);
-			assert.equal(userVotings.length, 2);
+			assert.equal(userVotings.length, 3);
 			assert.ok(userVotings.every((voting) => voting.account.user.toBase58() === user.publicKey.toBase58()));
+
+			// Get liked tweets
+			const likedTweets = await Promise.all(userVotings
+				.filter((voting) => Object.keys(voting.account.result).toString() == 'like')
+				.map((voting) => (program.account.tweet.fetch(voting.account.tweet)))
+			);
+			assert.equal(likedTweets.length, 2);
+			assert.equal(likedTweets[0].tag, "Linux");
 		});
 	})
 

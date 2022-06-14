@@ -53,7 +53,7 @@ comments
 	✔ can send, update and delete comments
 votings
 	✔ can vote and update votings for tweets
-	✔ can filter tweets a user has voted for
+	✔ can derive tweets from a users votings
 direct messages
 	✔ can send a direct message to another user
 	✔ can fetch and filter a users direct messages
